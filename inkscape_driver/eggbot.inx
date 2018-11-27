@@ -30,6 +30,8 @@ EggBot: Basic Setup
 </_param>
       <param indent="1" name="serialPort" type="string" 
 	     _gui-text="Serial port:">/dev/ttyACM0</param>
+	  <param indent="1" name="serialPortTimeout" type="int" min="0" max="100"
+	     _gui-text="Serial port timeout:">2</param>
       <param indent="1" name="penUpPosition" type="int" min="0" max="100"
 	     _gui-text="Pen up position, 0-100%:">70</param>
       <param indent="1" name="penDownPosition" type="int" min="0" max="100"

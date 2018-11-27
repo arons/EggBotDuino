@@ -23,6 +23,7 @@
 
 import gettext
 import math
+import serial
 import time
 
 import cubicsuperpath
@@ -90,6 +91,10 @@ class EggBot(inkex.Effect):
                                      action="store", type="string",
                                      dest="serialPort", default="/dev/ttyACM0",
                                      help="serialPort")
+        self.OptionParser.add_option("--serialPortTimeout",
+                                     action="store", type="int",
+                                     dest="serialPortTimeout", default="2",
+                                     help="serialPortTimeout")
         self.OptionParser.add_option("--penUpPosition",
                                      action="store", type="int",
                                      dest="penUpPosition", default=N_PEN_UP_POS,
@@ -165,6 +170,7 @@ class EggBot(inkex.Effect):
         self.svgTotalDeltaX = 0
         self.svgTotalDeltaY = 0
         self.serialPort = None
+        self.serialPortTimeout =1
 
         self.svg = None
         self.svgWidth = float(eggbot_conf.N_PAGE_WIDTH)
@@ -183,6 +189,36 @@ class EggBot(inkex.Effect):
         self.wrapSteps = 6400 / self.step_scaling_factor
         self.halfWrapSteps = self.wrapSteps / 2
 
+
+    def openPort(self):
+            try:
+                serial_port = serial.Serial(self.options.serialPort, timeout=self.options.serialPortTimeout)  # 1 second timeout!
+                time.sleep(3)
+                serial_port.flushInput() 
+                
+                serial_port.write('v\r'.encode('ascii'))
+                str_version = serial_port.readline()
+                if str_version and str_version.startswith("EBB".encode('ascii')):
+                    return serial_port
+
+                serial_port.write('v\r'.encode('ascii'))
+                str_version = serial_port.readline()
+                if str_version and str_version.startswith("EBB".encode('ascii')):
+                    return serial_port
+                
+                serial_port.close()
+                
+            except serial.SerialException:
+                pass
+            return None
+
+    def closePort(self, port_name):
+        if port_name is not None:
+            try:
+                port_name.close()
+            except serial.SerialException:
+                pass            
+            
     def effect(self):
         """Main entry point: check to see which tab is selected, and act accordingly."""
 
@@ -192,7 +228,7 @@ class EggBot(inkex.Effect):
         if self.options.tab in ['"Help"', '"options"', '"timing"']:
             pass
         else:
-            self.serialPort = ebb_serial.openPort(self.options.serialPort)
+            self.serialPort = self.openPort()
             if self.serialPort is None:
                 inkex.errormsg(gettext.gettext("Failed to connect to EggBot. :("))
 
@@ -243,7 +279,7 @@ class EggBot(inkex.Effect):
 
             if self.serialPort is not None:
                 ebb_motion.doTimedPause(self.serialPort, 10)  # Pause a moment for underway commands to finish...
-                ebb_serial.closePort(self.serialPort)
+                self.closePort(self.serialPort)
 
         self.svgDataRead = False
         self.UpdateSVGEggbotData(self.svg)
